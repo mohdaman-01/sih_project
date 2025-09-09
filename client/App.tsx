@@ -17,6 +17,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ScrollToHash from "@/components/ScrollToHash";
 import FloatingThemeToggle from "@/components/FloatingThemeToggle";
+import Preview from "./pages/Preview";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/verify" element={<Verify />} />
+            <Route path="/preview" element={<Preview />} />
             <Route path="/sign-in" element={<SignIn />} />
             <Route
               path="/admin"

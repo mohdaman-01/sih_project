@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { DemoResponse } from "@shared/api";
 import { Button } from "@/components/ui/button";
 import {
   ShieldCheck,
@@ -15,19 +14,6 @@ import Reveal from "@/components/anim/Reveal";
 import HeroOrb from "@/components/three/Orb";
 
 export default function Index() {
-  const [exampleFromServer, setExampleFromServer] = useState("");
-  useEffect(() => {
-    fetchDemo();
-  }, []);
-  const fetchDemo = async () => {
-    try {
-      const response = await fetch("/api/demo");
-      const data = (await response.json()) as DemoResponse;
-      setExampleFromServer(data.message);
-    } catch (error) {
-      // ignore in UI; server optional
-    }
-  };
 
   return (
     <main>
@@ -78,7 +64,6 @@ export default function Index() {
                 <HeroOrb />
               </div>
               <UploadBox />
-              <p className="sr-only">{exampleFromServer}</p>
             </Reveal>
           </div>
         </div>

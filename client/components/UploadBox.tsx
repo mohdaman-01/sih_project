@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,9 +21,12 @@ import {
   Upload,
 } from "lucide-react";
 import { analyzeFile, type VerificationResult } from "@/lib/verify";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function UploadBox() {
   const [dragging, setDragging] = useState(false);
+  const navigate = useNavigate();
+  const { pathname, search } = useLocation();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,14 @@ export default function UploadBox() {
     if (f) await handleFile(f);
   }, []);
 
-  const handleFile = async (f: File) => {
+  const handleFile = async (f: File, opts?: { skipRedirect?: boolean }) => {
+    // Redirect JPEG uploads to preview page first (unless disabled)
+    if (!opts?.skipRedirect && f.type && /image\/jpeg|image\/jpg/i.test(f.type)) {
+      const src = URL.createObjectURL(f);
+      const params = new URLSearchParams({ src, name: f.name, type: f.type || "image/jpeg" });
+      navigate(`/preview?${params.toString()}`);
+      return;
+    }
     setFile(f);
     setLoading(true);
     try {
@@ -58,6 +68,25 @@ export default function UploadBox() {
       setLoading(false);
     }
   };
+
+  // Auto-load from query (?src=...) to analyze when returning from preview
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const src = params.get("src");
+    const type = params.get("type");
+    const name = params.get("name") || "uploaded.jpg";
+    if (src && type && /image\/jpeg|image\/jpg/i.test(type)) {
+      // Only analyze on verify route to avoid loops
+      if (pathname === "/verify") {
+        fetch(src)
+          .then((r) => r.blob())
+          .then((blob) => new File([blob], name, { type }))
+          .then((file) => handleFile(file, { skipRedirect: true }))
+          .catch(() => {});
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, search]);
 
   const statusChip = useMemo(() => {
     if (!result) return null;
@@ -86,7 +115,7 @@ export default function UploadBox() {
         <div>
           <CardTitle>Verify a certificate</CardTitle>
           <CardDescription>
-            Upload a PDF or image. We compute hashes, check QR codes, and
+            Upload a JPEG or PNG image. We compute hashes, check QR codes, and
             cross-check with registries.
           </CardDescription>
         </div>
@@ -103,14 +132,14 @@ export default function UploadBox() {
           className={cn(
             "relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors",
             dragging
-              ? "border-emerald-500 bg-emerald-500/5 ring-4 ring-emerald-500/10"
+              ? "border-violet-500 bg-violet-500/5 ring-4 ring-violet-500/10"
               : "border-border",
           )}
         >
           <input
             ref={inputRef}
             type="file"
-            accept="application/pdf,image/*"
+            accept="image/jpeg,image/jpg,image/png"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -129,7 +158,7 @@ export default function UploadBox() {
               <Upload className="h-4 w-4" /> Choose file
             </Button>
             <p className="text-xs text-muted-foreground">
-              PDF, JPG, PNG up to 10MB
+              We only support JPEG and PNG for now.
             </p>
           </div>
         </div>
