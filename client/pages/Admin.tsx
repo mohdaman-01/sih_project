@@ -12,6 +12,7 @@ import {
 import { Upload, Database, Plus, Hash } from "lucide-react";
 import { useEffect, useState } from "react";
 import BackendStatus from "@/components/BackendStatus";
+import AuthStatus from "@/components/AuthStatus";
 
 type DigitalRecord = {
   certificateNumber: string;
@@ -54,7 +55,10 @@ export default function Admin() {
           </p>
         </header>
 
-        <BackendStatus />
+        <div className="grid lg:grid-cols-2 gap-6">
+          <BackendStatus />
+          <AuthStatus />
+        </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
           <Card>

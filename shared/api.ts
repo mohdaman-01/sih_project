@@ -140,7 +140,18 @@ export class APIClient {
 
   // Google Authentication
   redirectToGoogleAuth(): void {
+    console.warn("Redirecting to Google OAuth - ensure backend is configured");
     window.location.href = `${this.baseURL}/api/v1/auth/google`;
+  }
+
+  // Check if OAuth is available
+  async checkOAuthAvailable(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/v1/auth/google`, { method: 'HEAD' });
+      return response.ok;
+    } catch {
+      return false;
+    }
   }
 
   // Set auth token
