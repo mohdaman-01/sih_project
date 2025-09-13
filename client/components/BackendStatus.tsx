@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { apiClient, type HealthResponse } from "@/shared/api";
+import { apiClient, type HealthResponse } from "@shared/api";
 import { CheckCircle2, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
 
 export default function BackendStatus() {

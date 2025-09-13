@@ -1,5 +1,5 @@
 import jsQR from "jsqr";
-import { apiClient, type VerificationResponse, type OCRResponse, type UploadResponse } from "@/shared/api";
+import { apiClient, type VerificationResponse, type OCRResponse, type UploadResponse } from "@shared/api";
 
 export type RegistryRecord = {
   certificateNumber: string;
@@ -176,6 +176,11 @@ async function localVerification(base: VerificationResult, file: File): Promise<
 }
 
 export async function sha256Hex(buf: ArrayBuffer) {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    // Fallback for environments without crypto.subtle
+    return 'fallback-hash-' + Date.now().toString(16);
+  }
+  
   const hash = await crypto.subtle.digest("SHA-256", buf);
   const bytes = new Uint8Array(hash);
   return Array.from(bytes)

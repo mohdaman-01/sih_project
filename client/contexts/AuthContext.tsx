@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { apiClient } from "@/shared/api";
+import { apiClient } from "@shared/api";
 
 export type Role = "user" | "admin";
 export type AuthUser = {

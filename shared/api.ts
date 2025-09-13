@@ -4,7 +4,7 @@
  */
 
 // Railway Backend URL - use environment variable or fallback
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://web-production-935e9.up.railway.app';
+export const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://web-production-935e9.up.railway.app';
 
 /**
  * Backend API Response Types
@@ -72,7 +72,7 @@ export class APIClient {
 
   constructor(baseURL: string = API_BASE_URL) {
     this.baseURL = baseURL;
-    this.token = localStorage.getItem('auth_token');
+    this.token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
   }
 
   private async request<T>(
@@ -146,13 +146,17 @@ export class APIClient {
   // Set auth token
   setToken(token: string): void {
     this.token = token;
-    localStorage.setItem('auth_token', token);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', token);
+    }
   }
 
   // Clear auth token
   clearToken(): void {
     this.token = null;
-    localStorage.removeItem('auth_token');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+    }
   }
 }
 
