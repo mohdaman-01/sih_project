@@ -3,8 +3,8 @@
  * API configuration and types for Railway backend integration
  */
 
-// Railway Backend URL - use environment variable or fallback
-export const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://web-production-935e9.up.railway.app';
+// Heroku Backend URL - use environment variable or fallback
+export const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://nova-s-sih-35061497bf29.herokuapp.com';
 
 /**
  * Backend API Response Types
