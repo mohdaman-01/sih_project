@@ -86,20 +86,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async (roleHint: Role = "user") => {
-    // Check if backend OAuth is available
-    try {
-      const response = await fetch(`${apiClient.baseURL}/api/v1/auth/google`, { method: 'HEAD' });
-      if (response.ok) {
-        // Backend OAuth is available
-        apiClient.redirectToGoogleAuth();
-        return;
-      }
-    } catch (error) {
-      console.warn("Backend OAuth not available:", error);
+    // Always use backend OAuth if backend is connected
+    if (backendConnected) {
+      console.log("🚀 Redirecting to Google OAuth via backend...");
+      // Redirect to backend Google OAuth
+      window.location.href = `${apiClient.baseURL}/api/v1/auth/google`;
+      return;
     }
 
-    // Use mock authentication (for demo purposes)
-    console.log("Using demo authentication - backend OAuth not configured");
+    // Use mock authentication only if backend is not connected
+    console.log("Using demo authentication - backend not connected");
     const demoUser: AuthUser = {
       id: crypto.randomUUID(),
       name: roleHint === "admin" ? "Admin User (Demo)" : "Demo User",
@@ -112,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Show success message
     if (typeof window !== 'undefined') {
-      alert(`✅ Signed in as ${demoUser.name}\n\nNote: This is demo authentication. For production, configure Google OAuth in the backend.`);
+      alert(`✅ Signed in as ${demoUser.name}\n\nNote: This is demo authentication. Backend is not connected.`);
     }
   };
 

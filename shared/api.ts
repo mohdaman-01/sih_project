@@ -140,8 +140,9 @@ export class APIClient {
 
   // Google Authentication
   redirectToGoogleAuth(): void {
-    console.warn("Redirecting to Google OAuth - ensure backend is configured");
-    window.location.href = `${this.baseURL}/api/v1/auth/google`;
+    const redirectUrl = `${this.baseURL}/api/v1/auth/google?redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    console.log("🚀 Redirecting to Google OAuth:", redirectUrl);
+    window.location.href = redirectUrl;
   }
 
   // Check if OAuth is available
