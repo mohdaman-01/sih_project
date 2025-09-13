@@ -19,14 +19,19 @@ import {
   ShieldAlert,
   ShieldCheck,
   Upload,
+  Wifi,
+  WifiOff,
+  Server,
 } from "lucide-react";
 import { analyzeFile, type VerificationResult } from "@/lib/verify";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function UploadBox() {
   const [dragging, setDragging] = useState(false);
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
+  const { backendConnected } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -113,10 +118,26 @@ export default function UploadBox() {
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Verify a certificate</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Verify a certificate
+            {backendConnected ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 px-2 py-1 text-xs">
+                <Server className="h-3 w-3" /> Backend Connected
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-1 text-xs">
+                <WifiOff className="h-3 w-3" /> Offline Mode
+              </span>
+            )}
+          </CardTitle>
           <CardDescription>
             Upload a JPEG or PNG image. We compute hashes, check QR codes, and
             cross-check with registries.
+            {!backendConnected && (
+              <span className="block text-amber-600 dark:text-amber-400 text-xs mt-1">
+                Using local verification only - backend unavailable
+              </span>
+            )}
           </CardDescription>
         </div>
         <div>{statusChip}</div>
@@ -190,6 +211,25 @@ export default function UploadBox() {
                       title={result.metadata.qrData}
                     >
                       {result.metadata.qrData}
+                    </span>
+                  </li>
+                )}
+                {result?.metadata.ocrText && (
+                  <li className="flex items-center gap-2">
+                    <FileUp className="h-4 w-4 text-muted-foreground" /> OCR:{" "}
+                    <span
+                      className="truncate max-w-[260px]"
+                      title={result.metadata.ocrText}
+                    >
+                      {result.metadata.ocrText.substring(0, 50)}...
+                    </span>
+                  </li>
+                )}
+                {result?.metadata.uploadId && (
+                  <li className="flex items-center gap-2">
+                    <Server className="h-4 w-4 text-muted-foreground" /> ID:{" "}
+                    <span className="font-mono text-xs">
+                      {result.metadata.uploadId}
                     </span>
                   </li>
                 )}

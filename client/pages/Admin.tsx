@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Upload, Database, Plus, Hash } from "lucide-react";
 import { useEffect, useState } from "react";
+import BackendStatus from "@/components/BackendStatus";
 
 type DigitalRecord = {
   certificateNumber: string;
@@ -52,6 +53,8 @@ export default function Admin() {
             the verification engine.
           </p>
         </header>
+
+        <BackendStatus />
 
         <div className="grid lg:grid-cols-2 gap-6">
           <Card>

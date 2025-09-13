@@ -1,4 +1,5 @@
 import jsQR from "jsqr";
+import { apiClient, type VerificationResponse, type OCRResponse, type UploadResponse } from "@/shared/api";
 
 export type RegistryRecord = {
   certificateNumber: string;
@@ -18,14 +19,18 @@ export type VerificationResult = {
     mime: string;
     hashHex: string;
     qrData?: string;
+    uploadId?: string;
+    ocrText?: string;
+    backendVerification?: VerificationResponse;
   };
   matchedRecord?: RegistryRecord;
 };
 
+// Fallback mock registry for offline mode
 const MOCK_REGISTRY: RegistryRecord[] = [
   {
     certificateNumber: "JH-NU-2019-000123",
-    hashHex: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // sha256("") empty file for demo
+    hashHex: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     name: "Aarav Kumar",
     institution: "Nilamber-Pitamber University",
     course: "B.Sc",
@@ -33,16 +38,7 @@ const MOCK_REGISTRY: RegistryRecord[] = [
   },
   {
     certificateNumber: "JH-RU-2021-004567",
-    hashHex: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", // unmatched sample
-    name: "Ishita Singh",
-    institution: "Ranchi University",
-    course: "B.Tech",
-    year: 2021,
-  },
-  // Duplicate number scenario with different hash to simulate cloning
-  {
-    certificateNumber: "JH-RU-2021-004567",
-    hashHex: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    hashHex: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     name: "Ishita Singh",
     institution: "Ranchi University",
     course: "B.Tech",
@@ -65,7 +61,7 @@ export async function analyzeFile(file: File): Promise<VerificationResult> {
     },
   };
 
-  // QR (for images only)
+  // QR code extraction (local)
   if (file.type.startsWith("image/")) {
     try {
       const qr = await readQrFromImage(file);
@@ -75,6 +71,60 @@ export async function analyzeFile(file: File): Promise<VerificationResult> {
     }
   }
 
+  // Try backend verification first
+  try {
+    console.log("🚀 Attempting backend verification...");
+    
+    // Step 1: Upload file to backend
+    const uploadResult: UploadResponse = await apiClient.uploadCertificate(file);
+    base.metadata.uploadId = uploadResult.id;
+    console.log("✅ File uploaded:", uploadResult);
+
+    // Step 2: Extract text via OCR (if image)
+    if (file.type.startsWith("image/")) {
+      try {
+        const ocrResult: OCRResponse = await apiClient.extractText(file);
+        base.metadata.ocrText = ocrResult.extracted_text;
+        console.log("✅ OCR completed:", ocrResult);
+      } catch (ocrError) {
+        console.warn("⚠️ OCR failed:", ocrError);
+        base.issues.push("OCR text extraction failed");
+      }
+    }
+
+    // Step 3: Verify certificate
+    const verificationResult: VerificationResponse = await apiClient.verifyCertificate(uploadResult.id);
+    base.metadata.backendVerification = verificationResult;
+    console.log("✅ Backend verification:", verificationResult);
+
+    // Use backend results
+    base.status = verificationResult.status;
+    base.issues = [...base.issues, ...verificationResult.issues];
+    
+    if (verificationResult.matched_record) {
+      base.matchedRecord = {
+        certificateNumber: verificationResult.matched_record.certificate_number,
+        hashHex: hashHex,
+        name: verificationResult.matched_record.name,
+        institution: verificationResult.matched_record.institution,
+        course: verificationResult.matched_record.course,
+        year: verificationResult.matched_record.year,
+      };
+    }
+
+    return base;
+
+  } catch (backendError) {
+    console.warn("⚠️ Backend verification failed, falling back to local verification:", backendError);
+    base.issues.push("Backend verification unavailable - using local verification");
+    
+    // Fallback to local verification
+    return await localVerification(base, file);
+  }
+}
+
+// Local verification fallback
+async function localVerification(base: VerificationResult, file: File): Promise<VerificationResult> {
   // Try to infer certificate number from filename or QR
   const fromName = extractCertificateNumber(file.name);
   const fromQr = base.metadata.qrData
@@ -82,13 +132,13 @@ export async function analyzeFile(file: File): Promise<VerificationResult> {
     : null;
   const certificateNumber = fromQr || fromName;
 
-  // Cross-verify against registry
-  const directHashMatch = MOCK_REGISTRY.find((r) => r.hashHex === hashHex);
+  // Cross-verify against mock registry
+  const directHashMatch = MOCK_REGISTRY.find((r) => r.hashHex === base.metadata.hashHex);
   const numberMatches = certificateNumber
     ? MOCK_REGISTRY.filter((r) => r.certificateNumber === certificateNumber)
     : [];
 
-  const issues: string[] = [];
+  const issues: string[] = [...base.issues];
   let status: VerificationResult["status"] = "invalid";
   let matchedRecord: RegistryRecord | undefined = undefined;
 
@@ -107,14 +157,13 @@ export async function analyzeFile(file: File): Promise<VerificationResult> {
       );
     }
   } else {
-    // No match at all
     status = "suspect";
     issues.push(
       "No registry match. Please contact issuing institution for manual validation",
     );
   }
 
-  // Heuristics: basic mime check
+  // Basic validation
   if (!file.type) issues.push("Missing file type metadata");
   if (file.size === 0) issues.push("Empty file content");
 

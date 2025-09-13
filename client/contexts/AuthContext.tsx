@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { apiClient } from "@/shared/api";
 
 export type Role = "user" | "admin";
 export type AuthUser = {
@@ -20,6 +21,7 @@ type AuthContextType = {
   loading: boolean;
   signInWithGoogle: (roleHint?: Role) => Promise<void>;
   signOut: () => Promise<void>;
+  backendConnected: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,34 +29,90 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [backendConnected, setBackendConnected] = useState(false);
 
   useEffect(() => {
+    // Check backend connection
+    const checkBackend = async () => {
+      try {
+        await apiClient.health();
+        setBackendConnected(true);
+        console.log("✅ Backend connected");
+      } catch (error) {
+        setBackendConnected(false);
+        console.warn("⚠️ Backend not available:", error);
+      }
+    };
+
+    // Load saved user
     const raw = localStorage.getItem("auth:user");
-    if (raw) setUser(JSON.parse(raw));
+    if (raw) {
+      try {
+        setUser(JSON.parse(raw));
+      } catch (e) {
+        localStorage.removeItem("auth:user");
+      }
+    }
+
+    checkBackend();
     setLoading(false);
+
+    // Handle OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const userParam = urlParams.get('user');
+    
+    if (token && userParam) {
+      try {
+        const userData = JSON.parse(decodeURIComponent(userParam));
+        const authUser: AuthUser = {
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          avatarUrl: userData.avatar_url,
+          role: userData.role === 'admin' ? 'admin' : 'user',
+        };
+        
+        setUser(authUser);
+        localStorage.setItem("auth:user", JSON.stringify(authUser));
+        apiClient.setToken(token);
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (e) {
+        console.error("Failed to parse OAuth callback:", e);
+      }
+    }
   }, []);
 
   const signInWithGoogle = async (roleHint: Role = "user") => {
-    // This mocks a Google sign-in; replace with real provider (e.g., Supabase/Firebase)
-    const demoUser: AuthUser = {
-      id: crypto.randomUUID(),
-      name: roleHint === "admin" ? "Admin" : "User",
-      email: roleHint === "admin" ? "admin@example.com" : "user@example.com",
-      avatarUrl: undefined,
-      role: roleHint,
-    };
-    setUser(demoUser);
-    localStorage.setItem("auth:user", JSON.stringify(demoUser));
+    if (backendConnected) {
+      // Use Railway backend Google OAuth
+      apiClient.redirectToGoogleAuth();
+    } else {
+      // Fallback to mock authentication
+      console.warn("Backend not available, using mock authentication");
+      const demoUser: AuthUser = {
+        id: crypto.randomUUID(),
+        name: roleHint === "admin" ? "Admin User" : "Demo User",
+        email: roleHint === "admin" ? "admin@example.com" : "user@example.com",
+        avatarUrl: undefined,
+        role: roleHint,
+      };
+      setUser(demoUser);
+      localStorage.setItem("auth:user", JSON.stringify(demoUser));
+    }
   };
 
   const signOut = async () => {
     setUser(null);
     localStorage.removeItem("auth:user");
+    apiClient.clearToken();
   };
 
   const value = useMemo(
-    () => ({ user, loading, signInWithGoogle, signOut }),
-    [user, loading],
+    () => ({ user, loading, signInWithGoogle, signOut, backendConnected }),
+    [user, loading, backendConnected],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
